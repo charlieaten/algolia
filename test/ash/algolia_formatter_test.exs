@@ -61,6 +61,40 @@ defmodule Ash.AlgoliaFormatterTest do
     refute formatted =~ "hits_per_page(12)"
   end
 
+  test "formats multiline compute functions in ash style" do
+    opts = Code.eval_file(".formatter.exs") |> elem(0)
+
+    input = """
+    defmodule Demo do
+      use Ash.Resource,
+        data_layer: Ash.DataLayer.Ets,
+        extensions: [Ash.Algolia]
+
+      algolia do
+        index(:venues) do
+          projection() do
+            compute(:tag_names, fn venue ->
+              Enum.map(venue.tags || [], & &1.name)
+            end)
+          end
+        end
+      end
+    end
+    """
+
+    formatted =
+      input
+      |> Spark.Formatter.format(opts)
+      |> Ash.Algolia.Formatter.format(opts)
+
+    assert formatted =~
+             "        compute :tag_names, fn venue ->\n" <>
+               "          Enum.map(venue.tags || [], & &1.name)\n" <>
+               "        end"
+
+    refute formatted =~ "compute(:tag_names, fn venue ->"
+  end
+
   test "does not rewrite matching calls outside the algolia dsl" do
     opts = Code.eval_file(".formatter.exs") |> elem(0)
 
